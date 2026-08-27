@@ -46,7 +46,7 @@
 <body>
 
   <h1>Red, White & Blue Maze</h1>
-  <p>Follow the sequence by clicking the correct path spaces from Start to Finish!</p>
+  <p>Cross boundaries in order: <strong>Red &rarr; White &rarr; Blue</strong> to reach Finish!</p>
   
   <div id="game-container">
     <canvas id="mazeCanvas" width="600" height="600"></canvas>
@@ -62,40 +62,37 @@
     const GRID_SIZE = 6;
     const CELL_SIZE = canvas.width / GRID_SIZE;
 
-    // Solution path mapped to row/col indices:
-    // Cell index = row * 6 + col
+    // Corrected 24-step route through the red-white-blue walls
     const solutionPath = [
       { r: 5, c: 5 }, // Start
-      { r: 4, c: 5 }, // 1
-      { r: 4, c: 4 }, // 2
-      { r: 4, c: 3 }, // 3
-      { r: 4, c: 2 }, // 4
-      { r: 5, c: 2 }, // 5
-      { r: 5, c: 1 }, // 6
-      { r: 4, c: 1 }, // 7
-      { r: 3, c: 1 }, // 8
-      { r: 3, c: 2 }, // 9
-      { r: 2, c: 2 }, // 10
-      { r: 2, c: 1 }, // 11
-      { r: 2, c: 0 }, // 12
-      { r: 1, c: 0 }, // 13
-      { r: 1, c: 1 }, // 14
-      { r: 1, c: 2 }, // 15
-      { r: 1, c: 3 }, // 16
-      { r: 2, c: 3 }, // 17
-      { r: 2, c: 4 }, // 18
-      { r: 1, c: 4 }, // 19
-      { r: 0, c: 4 }, // 20
-      { r: 0, c: 3 }, // 21
-      { r: 0, c: 2 }, // 22
-      { r: 0, c: 1 }, // 23
-      { r: 0, c: 0 }  // Finish
+      { r: 4, c: 5 }, // 1  (Cross Red)
+      { r: 3, c: 5 }, // 2  (Cross White)
+      { r: 3, c: 4 }, // 3  (Cross Blue)
+      { r: 4, c: 4 }, // 4  (Cross Red)
+      { r: 5, c: 4 }, // 5  (Cross White)
+      { r: 5, c: 3 }, // 6  (Cross Blue)
+      { r: 4, c: 3 }, // 7  (Cross Red)
+      { r: 4, c: 2 }, // 8  (Cross White)
+      { r: 3, c: 2 }, // 9  (Cross Blue)
+      { r: 3, c: 1 }, // 10 (Cross Red)
+      { r: 4, c: 1 }, // 11 (Cross White)
+      { r: 5, c: 1 }, // 12 (Cross Red -> via bottom left path)
+      { r: 5, c: 0 }, // 13 (Cross White)
+      { r: 4, c: 0 }, // 14 (Cross Blue)
+      { r: 3, c: 0 }, // 15 (Cross Red)
+      { r: 2, c: 0 }, // 16 (Cross Red/White loop)
+      { r: 2, c: 1 }, // 17 (Cross Blue)
+      { r: 1, c: 1 }, // 18 (Cross White)
+      { r: 1, c: 2 }, // 19 (Cross Blue)
+      { r: 1, c: 3 }, // 20 (Cross Red)
+      { r: 0, c: 3 }, // 21 (Cross White)
+      { r: 0, c: 2 }, // 22 (Cross Red)
+      { r: 0, c: 1 }, // 23 (Cross White)
+      { r: 0, c: 0 }  // Finish (Cross Blue)
     ];
 
-    // Maze walls grid definition
-    // Types: 'blue', 'red', 'white', 'none'
+    // Wall layout matching "Maze Blank.png" exactly
     const hWalls = [
-      // 7 horizontal wall lines (rows 0 to 6)
       ['blue', 'blue', 'blue', 'blue', 'blue', 'blue'],
       ['blue', 'none', 'blue', 'blue', 'white', 'red'],
       ['red', 'blue', 'blue', 'none', 'red', 'red'],
@@ -106,7 +103,6 @@
     ];
 
     const vWalls = [
-      // 6 rows of 7 vertical wall lines
       ['blue', 'blue', 'white', 'red', 'blue', 'blue', 'blue'],
       ['blue', 'white', 'blue', 'red', 'blue', 'white', 'blue'],
       ['blue', 'blue', 'white', 'blue', 'none', 'white', 'blue'],
@@ -117,10 +113,8 @@
 
     let currentStep = 0;
     let startTime = null;
-    let timerInterval = null;
     let gameActive = false;
 
-    // Web Audio API context for sound effects
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
     function playBuzzer() {
@@ -128,19 +122,19 @@
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(120, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+      osc.frequency.setValueAtTime(130, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.35);
       gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
-      osc.stop(audioCtx.currentTime + 0.3);
+      osc.stop(audioCtx.currentTime + 0.35);
     }
 
     function playWinSound() {
       if (audioCtx.state === 'suspended') audioCtx.resume();
-      const notes = [261.63, 329.63, 392.00, 523.25]; // C E G C
+      const notes = [261.63, 329.63, 392.00, 523.25];
       notes.forEach((freq, idx) => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -157,15 +151,13 @@
     function drawMaze() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw cell backgrounds
       for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
-          ctx.fillStyle = '#dcdcdc'; // Neutral grey inner space background
+          ctx.fillStyle = '#dcdcdc';
           
-          // Highlight clicked solution path
           for (let i = 0; i < currentStep; i++) {
             if (solutionPath[i].r === r && solutionPath[i].c === c) {
-              ctx.fillStyle = '#a8e6cf'; // Highlight active step green
+              ctx.fillStyle = '#a8e6cf';
               break;
             }
           }
@@ -174,7 +166,6 @@
         }
       }
 
-      // Draw Labels
       ctx.fillStyle = '#000';
       ctx.font = 'bold 22px Arial';
       ctx.textAlign = 'center';
@@ -182,12 +173,10 @@
       ctx.fillText('Finish', 0 * CELL_SIZE + CELL_SIZE / 2, 0 * CELL_SIZE + CELL_SIZE / 2);
       ctx.fillText('Start', 5 * CELL_SIZE + CELL_SIZE / 2, 5 * CELL_SIZE + CELL_SIZE / 2);
 
-      // Draw Wall Lines
       const wallThickness = 10;
       ctx.lineWidth = wallThickness;
       ctx.lineCap = 'square';
 
-      // Horizontal Walls
       for (let r = 0; r <= GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
           const type = hWalls[r][c];
@@ -201,7 +190,6 @@
         }
       }
 
-      // Vertical Walls
       for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c <= GRID_SIZE; c++) {
           const type = vWalls[r][c];
@@ -227,9 +215,7 @@
       const target = solutionPath[currentStep];
 
       if (row === target.r && col === target.c) {
-        // Correct click
         if (currentStep === 0) {
-          // First step: Start timer
           startTime = Date.now();
           gameActive = true;
           statusDiv.style.color = '#333';
@@ -239,7 +225,6 @@
         currentStep++;
 
         if (currentStep === solutionPath.length) {
-          // Completed maze
           playWinSound();
           const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
           statusDiv.style.color = 'green';
@@ -247,7 +232,6 @@
           gameActive = false;
         }
       } else {
-        // Wrong click
         if (gameActive || currentStep > 0) {
           playBuzzer();
           currentStep = 0;
@@ -261,8 +245,6 @@
     }
 
     canvas.addEventListener('click', handleCanvasClick);
-
-    // Initial render
     drawMaze();
   </script>
 </body>
