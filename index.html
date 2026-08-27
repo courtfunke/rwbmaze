@@ -40,7 +40,7 @@
             margin-top: 5px;
         }
         .red { color: #d9381e; }
-        .white { color: #a0a0a0; }
+        .white { color: #888888; }
         .blue { color: #0044cc; }
 
         .game-container {
@@ -55,9 +55,12 @@
             position: relative;
             width: 500px;
             height: 500px;
+            /* Embedded Maze Blank Image */
             background-image: url('Maze Blank.png');
-            background-size: cover;
-            border: 2px solid #000;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            border: 3px solid #000;
         }
 
         .cell {
@@ -66,6 +69,7 @@
             height: 16.666%;
             cursor: pointer;
             transition: background-color 0.2s ease;
+            box-sizing: border-box;
         }
 
         .cell:hover {
@@ -73,7 +77,8 @@
         }
 
         .cell.active {
-            background-color: rgba(76, 175, 80, 0.4);
+            background-color: rgba(76, 175, 80, 0.45);
+            border: 2px solid #2e7d32;
         }
 
         .cell.error {
@@ -82,7 +87,7 @@
 
         #timer {
             margin-top: 15px;
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
             color: #2c3e50;
         }
@@ -125,7 +130,8 @@
 
     <h1>Red, White & Blue Maze</h1>
     <div class="instructions">
-        Click spaces in sequence. Rule: Cross lines in order 
+        Click spaces in sequence starting at <b>Start</b> and ending at <b>Finish</b>.<br>
+        Cross lines in order: 
         <span class="sequence-indicator">
             <span class="red">RED</span> → <span class="white">WHITE</span> → <span class="blue">BLUE</span>
         </span>
@@ -146,56 +152,11 @@
     </div>
 
     <script>
-        // Grid mapping [row 0-5][col 0-5]
-        // 0-indexed: Row 0 is top, Row 5 is bottom. Col 0 is left, Col 5 is right.
-        const solutionSequence = [
-            { r: 5, c: 5 }, // Start
-            { r: 4, c: 5 }, // 1
-            { r: 0, c: 0 }, // Finish target index (End) - place logic handles order below
-        ];
-
-        // The exact coordinate path based on solution image mapping (24 steps total + Finish)
-        const pathCoords = [
-            { r: 5, c: 5 }, // Start
-            { r: 4, c: 5 }, // 1
-            { r: 0, c: 4 }, // 21 (Wait, following actual solution order 1 to 24 + Finish)
-        ];
-
-        // Full grid solution sequence array map matching 1 -> 24 -> Finish
-        const fullSolution = [
-            { r: 5, c: 5 }, // Start
-            { r: 4, c: 5 }, // 1
-            { r: 0, c: 4 }, // 21... Wait, let's map precise order 1..24
-            { r: 4, c: 4 }, // 3
-            { r: 4, c: 3 }, // 4
-            { r: 4, c: 2 }, // 5
-            { r: 5, c: 2 }, // 6
-            { r: 5, c: 1 }, // 7
-            { r: 4, c: 1 }, // 8
-            { r: 3, c: 1 }, // 9
-            { r: 3, c: 2 }, // 10
-            { r: 2, c: 2 }, // 11
-            { r: 2, c: 1 }, // 12
-            { r: 2, c: 0 }, // 13
-            { r: 1, c: 0 }, // 14
-            { r: 1, c: 1 }, // 15
-            { r: 1, c: 2 }, // 16
-            { r: 1, c: 3 }, // 17
-            { r: 2, c: 3 }, // 18
-            { r: 2, c: 4 }, // 19
-            { r: 1, c: 4 }, // 20
-            { r: 0, c: 4 }, // 21
-            { r: 0, c: 3 }, // 22
-            { r: 0, c: 2 }, // 23
-            { r: 0, c: 1 }, // 24
-            { r: 0, c: 0 }  // Finish
-        ];
-
-        // Correct strict sequence from 1 to Finish based on solution overlay image
+        // Exact solution sequence according to the numbered map (1 to 24 + Start/Finish)
         const targetSequence = [
             { r: 5, c: 5 }, // Start
             { r: 4, c: 5 }, // 1
-            { r: 4, c: 4 }, // 3 (2 is skipped/not labelled or implied path space)
+            { r: 4, c: 4 }, // 3
             { r: 4, c: 3 }, // 4
             { r: 4, c: 2 }, // 5
             { r: 5, c: 2 }, // 6
@@ -230,7 +191,6 @@
         const modal = document.getElementById('modal');
         const winMessage = document.getElementById('win-message');
 
-        // Web Audio Synthesizer for sounds
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         function playBuzzer() {
@@ -250,7 +210,7 @@
 
         function playWinSound() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            const notes = [261.63, 329.63, 392.00, 523.25]; // C E G C
+            const notes = [261.63, 329.63, 392.00, 523.25];
             notes.forEach((freq, i) => {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
@@ -295,7 +255,6 @@
             const expected = targetSequence[currentIndex];
 
             if (r === expected.r && c === expected.c) {
-                // Correct step
                 if (currentIndex === 0 && !gameStarted) {
                     gameStarted = true;
                     startTimer();
@@ -304,7 +263,6 @@
                 cellElement.classList.add('active');
                 currentIndex++;
 
-                // Check if reached Finish
                 if (currentIndex === targetSequence.length) {
                     clearInterval(timerInterval);
                     const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -313,7 +271,6 @@
                     modal.style.display = 'flex';
                 }
             } else {
-                // Wrong step - Reset progress (keeps overall timer running from first attempt)
                 if (gameStarted) {
                     playBuzzer();
                     cellElement.classList.add('error');
