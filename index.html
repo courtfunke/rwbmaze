@@ -14,22 +14,19 @@
       margin: 0;
       padding: 20px;
     }
-    h1 { margin-bottom: 5px; }
-    p { margin-top: 5px; color: #555; }
     #status {
       font-size: 1.2rem;
       font-weight: bold;
       margin: 15px 0;
-      height: 30px;
+      min-height: 30px;
     }
-    /* 6x6 Grid Container */
+    /* 6x6 Grid Container with Green Outer Frame */
     #maze-board {
       display: grid;
       grid-template-columns: repeat(6, 60px);
       grid-template-rows: repeat(6, 60px);
-      background-color: #fff;
-      padding: 5px;
-      border: 8px solid #2e7d32; /* Green Outer Border */
+      background-color: #ffffff;
+      border: 8px solid #2e7d32; /* Green outer boundary */
       box-shadow: 0 4px 10px rgba(0,0,0,0.15);
     }
     .cell {
@@ -40,16 +37,16 @@
       justify-content: center;
       align-items: center;
       font-weight: bold;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       cursor: pointer;
       user-select: none;
-      position: relative;
+      border-top: 3px solid transparent;
+      border-bottom: 3px solid transparent;
+      border-left: 3px solid transparent;
+      border-right: 3px solid transparent;
     }
     .cell.active {
-      background-color: #fff9c4; /* Highlight current space */
-    }
-    .cell.visited {
-      background-color: #e0f7fa;
+      background-color: #fff9c4 !important;
     }
     .start-cell { background-color: #c8e6c9; }
     .finish-cell { background-color: #ffcdd2; }
@@ -63,13 +60,12 @@
       color: white;
       border-radius: 4px;
     }
-    button:hover { background-color: #1565c0; }
   </style>
 </head>
 <body>
 
   <h1>Red, White & Blue Maze</h1>
-  <p>Move from <strong>START</strong> to <strong>FINISH</strong> by crossing lines in order: 
+  <p>Order to cross: 
      <span style="color:red; font-weight:bold;">Red</span> &rarr; 
      <span style="color:gray; font-weight:bold;">White</span> &rarr; 
      <span style="color:blue; font-weight:bold;">Blue</span>
@@ -77,15 +73,22 @@
 
   <div id="status">Click START to begin!</div>
   <div id="maze-board"></div>
-  <button onclick="resetGame()">Reset Game</button>
+  <button id="reset-btn">Reset Game</button>
 
   <script>
     const GRID_SIZE = 6;
-    
-    // Line Color Map for Internal Walls
-    // 'r' = Red, 'w' = White, 'b' = Blue
-    
-    // Vertical Walls: 6 rows, 5 internal boundaries per row
+
+    // Line colors: 'r' = Red, 'w' = White, 'b' = Blue
+    // Horizontal borders between rows (5 rows of 6 borders)
+    const hWalls = [
+      ['b', 'r', 'w', 'b', 'r', 'w'],
+      ['r', 'w', 'b', 'r', 'w', 'b'],
+      ['w', 'b', 'r', 'w', 'b', 'r'],
+      ['b', 'r', 'w', 'b', 'r', 'w'],
+      ['r', 'w', 'b', 'r', 'w', 'b']
+    ];
+
+    // Vertical borders between columns (6 rows of 5 borders)
     const vWalls = [
       ['r', 'w', 'b', 'r', 'w'],
       ['w', 'b', 'r', 'w', 'b'],
@@ -95,28 +98,21 @@
       ['b', 'r', 'w', 'b', 'r']
     ];
 
-    // Horizontal Walls: 5 internal boundaries rows, 6 columns per row
-    const hWalls = [
-      ['b', 'r', 'w', 'b', 'r', 'w'],
-      ['r', 'w', 'b', 'r', 'w', 'b'],
-      ['w', 'b', 'r', 'w', 'b', 'r'],
-      ['b', 'r', 'w', 'b', 'r', 'w'],
-      ['r', 'w', 'b', 'r', 'w', 'b']
-    ];
-
-    const colorMap = { 'r': '#e53935', 'w': '#e0e0e0', 'b': '#1e88e5' };
+    const colorMap = { 'r': '#e53935', 'w': '#cccccc', 'b': '#1e88e5' };
     const colorOrder = ['r', 'w', 'b'];
 
     let currentPos = null;
-    let colorIndex = 0; // 0: Red next, 1: White next, 2: Blue next
+    let colorIndex = 0;
     let startTime = null;
     let gameActive = false;
-
-    // Web Audio Synthesizer for Effects
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let audioCtx = null;
 
     function playSound(type) {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
       if (audioCtx.state === 'suspended') audioCtx.resume();
+      
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.connect(gain);
@@ -140,7 +136,6 @@
       }
     }
 
-    // Build the grid UI dynamically
     function buildBoard() {
       const board = document.getElementById('maze-board');
       board.innerHTML = '';
@@ -149,21 +144,14 @@
         for (let c = 0; c < GRID_SIZE; c++) {
           const cell = document.createElement('div');
           cell.className = 'cell';
-          cell.dataset.row = r;
-          cell.dataset.col = c;
 
-          // Apply Border Styling based on internal walls
-          const topColor = r > 0 ? colorMap[hWalls[r - 1][c]] : 'transparent';
-          const bottomColor = r < GRID_SIZE - 1 ? colorMap[hWalls[r][c]] : 'transparent';
-          const leftColor = c > 0 ? colorMap[vWalls[r][c - 1]] : 'transparent';
-          const rightColor = c < GRID_SIZE - 1 ? colorMap[vWalls[r][c]] : 'transparent';
+          // Set internal borders
+          if (r > 0) cell.style.borderTopColor = colorMap[hWalls[r - 1][c]];
+          if (r < GRID_SIZE - 1) cell.style.borderBottomColor = colorMap[hWalls[r][c]];
+          if (c > 0) cell.style.borderLeftColor = colorMap[vWalls[r][c - 1]];
+          if (c < GRID_SIZE - 1) cell.style.borderRightColor = colorMap[vWalls[r][c]];
 
-          cell.style.borderTop = r > 0 ? `4px solid ${topColor}` : 'none';
-          cell.style.borderBottom = r < GRID_SIZE - 1 ? `4px solid ${bottomColor}` : 'none';
-          cell.style.borderLeft = c > 0 ? `4px solid ${leftColor}` : 'none';
-          cell.style.borderRight = c < GRID_SIZE - 1 ? `4px solid ${rightColor}` : 'none';
-
-          // Set Labels
+          // Labels
           if (r === 0 && c === 0) {
             cell.textContent = 'FINISH';
             cell.classList.add('finish-cell');
@@ -179,11 +167,76 @@
     }
 
     function handleCellClick(r, c) {
-      // Start Game Condition
       if (r === 5 && c === 5) {
-        if (!startTime) startTime = new Date();
+        startTime = new Date();
         currentPos = { r: 5, c: 5 };
         colorIndex = 0;
         gameActive = true;
-        updateUI("Game started! Cross a RED line next.");
+        updateUI("Started! Next cross: RED line.");
+        highlightCurrentCell();
         return;
+      }
+
+      if (!gameActive || !currentPos) return;
+
+      const dr = Math.abs(currentPos.r - r);
+      const dc = Math.abs(currentPos.c - c);
+
+      // Must be adjacent step
+      if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+        let crossedColor = null;
+
+        if (r < currentPos.r) crossedColor = hWalls[r][c];
+        else if (r > currentPos.r) crossedColor = hWalls[currentPos.r][c];
+        else if (c < currentPos.c) crossedColor = vWalls[r][c];
+        else if (c > currentPos.c) crossedColor = vWalls[r][currentPos.c];
+
+        if (crossedColor === colorOrder[colorIndex]) {
+          currentPos = { r, c };
+          colorIndex = (colorIndex + 1) % 3;
+          const nextColor = colorIndex === 0 ? "RED" : colorIndex === 1 ? "WHITE" : "BLUE";
+
+          if (r === 0 && c === 0) {
+            const timeTaken = ((new Date() - startTime) / 1000).toFixed(1);
+            playSound('win');
+            updateUI(`🎉 Victory! Solved in ${timeTaken} seconds.`);
+            gameActive = false;
+          } else {
+            updateUI(`Valid step! Next cross: ${nextColor} line.`);
+          }
+        } else {
+          playSound('error');
+          updateUI("❌ Incorrect color sequence! Reset to START.");
+          currentPos = { r: 5, c: 5 };
+          colorIndex = 0;
+        }
+        highlightCurrentCell();
+      }
+    }
+
+    function highlightCurrentCell() {
+      const cells = document.querySelectorAll('.cell');
+      cells.forEach(c => c.classList.remove('active'));
+      if (currentPos) {
+        const index = currentPos.r * GRID_SIZE + currentPos.c;
+        cells[index].classList.add('active');
+      }
+    }
+
+    function updateUI(msg) {
+      document.getElementById('status').textContent = msg;
+    }
+
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      currentPos = null;
+      colorIndex = 0;
+      gameActive = false;
+      highlightCurrentCell();
+      updateUI("Click START to begin!");
+    });
+
+    // Render board on load
+    window.onload = buildBoard;
+  </script>
+</body>
+</html>
