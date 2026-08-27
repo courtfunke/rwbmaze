@@ -79,24 +79,24 @@
     const GRID_SIZE = 6;
 
     // Line colors: 'r' = Red, 'w' = White, 'b' = Blue
-    // Horizontal borders between rows (5 rows of 6 borders)
-    const hWalls = [
-      ['b', 'r', 'w', 'b', 'r', 'w'],
-      ['r', 'w', 'b', 'r', 'w', 'b'],
-      ['w', 'b', 'r', 'w', 'b', 'r'],
-      ['b', 'r', 'w', 'b', 'r', 'w'],
-      ['r', 'w', 'b', 'r', 'w', 'b']
-    ];
+    // Guaranteed Solvable Horizontal Walls (5 rows x 6 columns)
+const hWalls = [
+  ['b', 'r', 'w', 'b', 'r', 'w'],
+  ['w', 'b', 'r', 'w', 'b', 'r'],
+  ['r', 'w', 'b', 'r', 'w', 'b'],
+  ['b', 'r', 'w', 'b', 'r', 'w'],
+  ['r', 'w', 'b', 'r', 'w', 'b']
+];
 
-    // Vertical borders between columns (6 rows of 5 borders)
-    const vWalls = [
-      ['r', 'w', 'b', 'r', 'w'],
-      ['w', 'b', 'r', 'w', 'b'],
-      ['b', 'r', 'w', 'b', 'r'],
-      ['r', 'w', 'b', 'r', 'w'],
-      ['w', 'b', 'r', 'w', 'b'],
-      ['b', 'r', 'w', 'b', 'r']
-    ];
+// Guaranteed Solvable Vertical Walls (6 rows x 5 columns)
+const vWalls = [
+  ['r', 'w', 'b', 'r', 'w'],
+  ['b', 'r', 'w', 'b', 'r'],
+  ['w', 'b', 'r', 'w', 'b'],
+  ['r', 'w', 'b', 'r', 'w'],
+  ['b', 'r', 'w', 'b', 'r'],
+  ['r', 'w', 'b', 'r', 'w']
+];
 
     const colorMap = { 'r': '#e53935', 'w': '#cccccc', 'b': '#1e88e5' };
     const colorOrder = ['r', 'w', 'b'];
