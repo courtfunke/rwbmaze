@@ -3,249 +3,187 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Red, White & Blue Maze Game</title>
+  <title>Red White Blue Line Maze</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
       background-color: #f4f4f9;
+      margin: 0;
+      padding: 20px;
     }
-    h1 {
-      margin-bottom: 5px;
-      color: #333;
-    }
-    p {
-      margin-top: 0;
-      margin-bottom: 15px;
-      color: #666;
-    }
-    #game-container {
-      position: relative;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-      border-radius: 8px;
-      overflow: hidden;
-      background: #fff;
-    }
-    canvas {
-      display: block;
-      cursor: pointer;
-    }
+    h1 { margin-bottom: 5px; }
+    p { margin-top: 5px; color: #555; }
     #status {
-      margin-top: 15px;
       font-size: 1.2rem;
       font-weight: bold;
-      min-height: 30px;
+      margin: 15px 0;
+      height: 30px;
     }
+    /* 6x6 Grid Container */
+    #maze-board {
+      display: grid;
+      grid-template-columns: repeat(6, 60px);
+      grid-template-rows: repeat(6, 60px);
+      background-color: #fff;
+      padding: 5px;
+      border: 8px solid #2e7d32; /* Green Outer Border */
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+    .cell {
+      width: 60px;
+      height: 60px;
+      box-sizing: border-box;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      font-size: 0.85rem;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    .cell.active {
+      background-color: #fff9c4; /* Highlight current space */
+    }
+    .cell.visited {
+      background-color: #e0f7fa;
+    }
+    .start-cell { background-color: #c8e6c9; }
+    .finish-cell { background-color: #ffcdd2; }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      cursor: pointer;
+      border: none;
+      background-color: #1976d2;
+      color: white;
+      border-radius: 4px;
+    }
+    button:hover { background-color: #1565c0; }
   </style>
 </head>
 <body>
 
   <h1>Red, White & Blue Maze</h1>
-  <p>Cross boundaries in order: <strong>Red &rarr; White &rarr; Blue</strong> to reach Finish!</p>
-  
-  <div id="game-container">
-    <canvas id="mazeCanvas" width="600" height="600"></canvas>
-  </div>
-  
-  <div id="status">Click "Start" to begin!</div>
+  <p>Move from <strong>START</strong> to <strong>FINISH</strong> by crossing lines in order: 
+     <span style="color:red; font-weight:bold;">Red</span> &rarr; 
+     <span style="color:gray; font-weight:bold;">White</span> &rarr; 
+     <span style="color:blue; font-weight:bold;">Blue</span>
+  </p>
+
+  <div id="status">Click START to begin!</div>
+  <div id="maze-board"></div>
+  <button onclick="resetGame()">Reset Game</button>
 
   <script>
-    const canvas = document.getElementById('mazeCanvas');
-    const ctx = canvas.getContext('2d');
-    const statusDiv = document.getElementById('status');
-
     const GRID_SIZE = 6;
-    const CELL_SIZE = canvas.width / GRID_SIZE;
-
-    // Corrected 24-step route through the red-white-blue walls
-    const solutionPath = [
-      { r: 5, c: 5 }, // Start
-      { r: 4, c: 5 }, // 1  (Cross Red)
-      { r: 3, c: 5 }, // 2  (Cross White)
-      { r: 3, c: 4 }, // 3  (Cross Blue)
-      { r: 4, c: 4 }, // 4  (Cross Red)
-      { r: 5, c: 4 }, // 5  (Cross White)
-      { r: 5, c: 3 }, // 6  (Cross Blue)
-      { r: 4, c: 3 }, // 7  (Cross Red)
-      { r: 4, c: 2 }, // 8  (Cross White)
-      { r: 3, c: 2 }, // 9  (Cross Blue)
-      { r: 3, c: 1 }, // 10 (Cross Red)
-      { r: 4, c: 1 }, // 11 (Cross White)
-      { r: 5, c: 1 }, // 12 (Cross Red -> via bottom left path)
-      { r: 5, c: 0 }, // 13 (Cross White)
-      { r: 4, c: 0 }, // 14 (Cross Blue)
-      { r: 3, c: 0 }, // 15 (Cross Red)
-      { r: 2, c: 0 }, // 16 (Cross Red/White loop)
-      { r: 2, c: 1 }, // 17 (Cross Blue)
-      { r: 1, c: 1 }, // 18 (Cross White)
-      { r: 1, c: 2 }, // 19 (Cross Blue)
-      { r: 1, c: 3 }, // 20 (Cross Red)
-      { r: 0, c: 3 }, // 21 (Cross White)
-      { r: 0, c: 2 }, // 22 (Cross Red)
-      { r: 0, c: 1 }, // 23 (Cross White)
-      { r: 0, c: 0 }  // Finish (Cross Blue)
-    ];
-
-    // Wall layout matching "Maze Blank.png" exactly
-    const hWalls = [
-      ['blue', 'blue', 'blue', 'blue', 'blue', 'blue'],
-      ['blue', 'none', 'blue', 'blue', 'white', 'red'],
-      ['red', 'blue', 'blue', 'none', 'red', 'red'],
-      ['blue', 'blue', 'red', 'blue', 'blue', 'blue'],
-      ['red', 'red', 'blue', 'red', 'blue', 'white'],
-      ['blue', 'red', 'white', 'white', 'blue', 'red'],
-      ['blue', 'blue', 'blue', 'blue', 'blue', 'blue']
-    ];
-
+    
+    // Line Color Map for Internal Walls
+    // 'r' = Red, 'w' = White, 'b' = Blue
+    
+    // Vertical Walls: 6 rows, 5 internal boundaries per row
     const vWalls = [
-      ['blue', 'blue', 'white', 'red', 'blue', 'blue', 'blue'],
-      ['blue', 'white', 'blue', 'red', 'blue', 'white', 'blue'],
-      ['blue', 'blue', 'white', 'blue', 'none', 'white', 'blue'],
-      ['blue', 'white', 'blue', 'blue', 'red', 'blue', 'blue'],
-      ['blue', 'red', 'blue', 'red', 'blue', 'white', 'blue'],
-      ['blue', 'white', 'blue', 'blue', 'red', 'red', 'blue']
+      ['r', 'w', 'b', 'r', 'w'],
+      ['w', 'b', 'r', 'w', 'b'],
+      ['b', 'r', 'w', 'b', 'r'],
+      ['r', 'w', 'b', 'r', 'w'],
+      ['w', 'b', 'r', 'w', 'b'],
+      ['b', 'r', 'w', 'b', 'r']
     ];
 
-    let currentStep = 0;
+    // Horizontal Walls: 5 internal boundaries rows, 6 columns per row
+    const hWalls = [
+      ['b', 'r', 'w', 'b', 'r', 'w'],
+      ['r', 'w', 'b', 'r', 'w', 'b'],
+      ['w', 'b', 'r', 'w', 'b', 'r'],
+      ['b', 'r', 'w', 'b', 'r', 'w'],
+      ['r', 'w', 'b', 'r', 'w', 'b']
+    ];
+
+    const colorMap = { 'r': '#e53935', 'w': '#e0e0e0', 'b': '#1e88e5' };
+    const colorOrder = ['r', 'w', 'b'];
+
+    let currentPos = null;
+    let colorIndex = 0; // 0: Red next, 1: White next, 2: Blue next
     let startTime = null;
     let gameActive = false;
 
+    // Web Audio Synthesizer for Effects
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-    function playBuzzer() {
+    function playSound(type) {
       if (audioCtx.state === 'suspended') audioCtx.resume();
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(130, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.35);
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.35);
+
+      if (type === 'error') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(130, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.4);
+      } else if (type === 'win') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.5);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+      }
     }
 
-    function playWinSound() {
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      const notes = [261.63, 329.63, 392.00, 523.25];
-      notes.forEach((freq, idx) => {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.2, audioCtx.currentTime + idx * 0.1);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + idx * 0.1 + 0.25);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(audioCtx.currentTime + idx * 0.1);
-        osc.stop(audioCtx.currentTime + idx * 0.1 + 0.25);
-      });
-    }
-
-    function drawMaze() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Build the grid UI dynamically
+    function buildBoard() {
+      const board = document.getElementById('maze-board');
+      board.innerHTML = '';
 
       for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
-          ctx.fillStyle = '#dcdcdc';
-          
-          for (let i = 0; i < currentStep; i++) {
-            if (solutionPath[i].r === r && solutionPath[i].c === c) {
-              ctx.fillStyle = '#a8e6cf';
-              break;
-            }
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+
+          // Apply Border Styling based on internal walls
+          const topColor = r > 0 ? colorMap[hWalls[r - 1][c]] : 'transparent';
+          const bottomColor = r < GRID_SIZE - 1 ? colorMap[hWalls[r][c]] : 'transparent';
+          const leftColor = c > 0 ? colorMap[vWalls[r][c - 1]] : 'transparent';
+          const rightColor = c < GRID_SIZE - 1 ? colorMap[vWalls[r][c]] : 'transparent';
+
+          cell.style.borderTop = r > 0 ? `4px solid ${topColor}` : 'none';
+          cell.style.borderBottom = r < GRID_SIZE - 1 ? `4px solid ${bottomColor}` : 'none';
+          cell.style.borderLeft = c > 0 ? `4px solid ${leftColor}` : 'none';
+          cell.style.borderRight = c < GRID_SIZE - 1 ? `4px solid ${rightColor}` : 'none';
+
+          // Set Labels
+          if (r === 0 && c === 0) {
+            cell.textContent = 'FINISH';
+            cell.classList.add('finish-cell');
+          } else if (r === 5 && c === 5) {
+            cell.textContent = 'START';
+            cell.classList.add('start-cell');
           }
 
-          ctx.fillRect(c * CELL_SIZE, r * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-        }
-      }
-
-      ctx.fillStyle = '#000';
-      ctx.font = 'bold 22px Arial';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('Finish', 0 * CELL_SIZE + CELL_SIZE / 2, 0 * CELL_SIZE + CELL_SIZE / 2);
-      ctx.fillText('Start', 5 * CELL_SIZE + CELL_SIZE / 2, 5 * CELL_SIZE + CELL_SIZE / 2);
-
-      const wallThickness = 10;
-      ctx.lineWidth = wallThickness;
-      ctx.lineCap = 'square';
-
-      for (let r = 0; r <= GRID_SIZE; r++) {
-        for (let c = 0; c < GRID_SIZE; c++) {
-          const type = hWalls[r][c];
-          if (type !== 'none') {
-            ctx.strokeStyle = type;
-            ctx.beginPath();
-            ctx.moveTo(c * CELL_SIZE, r * CELL_SIZE);
-            ctx.lineTo((c + 1) * CELL_SIZE, r * CELL_SIZE);
-            ctx.stroke();
-          }
-        }
-      }
-
-      for (let r = 0; r < GRID_SIZE; r++) {
-        for (let c = 0; c <= GRID_SIZE; c++) {
-          const type = vWalls[r][c];
-          if (type !== 'none') {
-            ctx.strokeStyle = type;
-            ctx.beginPath();
-            ctx.moveTo(c * CELL_SIZE, r * CELL_SIZE);
-            ctx.lineTo(c * CELL_SIZE, (r + 1) * CELL_SIZE);
-            ctx.stroke();
-          }
+          cell.addEventListener('click', () => handleCellClick(r, c));
+          board.appendChild(cell);
         }
       }
     }
 
-    function handleCanvasClick(event) {
-      const rect = canvas.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-
-      const col = Math.floor(x / CELL_SIZE);
-      const row = Math.floor(y / CELL_SIZE);
-
-      const target = solutionPath[currentStep];
-
-      if (row === target.r && col === target.c) {
-        if (currentStep === 0) {
-          startTime = Date.now();
-          gameActive = true;
-          statusDiv.style.color = '#333';
-          statusDiv.textContent = 'Game In Progress...';
-        }
-
-        currentStep++;
-
-        if (currentStep === solutionPath.length) {
-          playWinSound();
-          const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
-          statusDiv.style.color = 'green';
-          statusDiv.textContent = `🎉 You won! Final Time: ${elapsed} seconds!`;
-          gameActive = false;
-        }
-      } else {
-        if (gameActive || currentStep > 0) {
-          playBuzzer();
-          currentStep = 0;
-          gameActive = false;
-          statusDiv.style.color = 'red';
-          statusDiv.textContent = '❌ Wrong move! Resetting to Start...';
-        }
-      }
-
-      drawMaze();
-    }
-
-    canvas.addEventListener('click', handleCanvasClick);
-    drawMaze();
-  </script>
-</body>
-</html>
+    function handleCellClick(r, c) {
+      // Start Game Condition
+      if (r === 5 && c === 5) {
+        if (!startTime) startTime = new Date();
+        currentPos = { r: 5, c: 5 };
+        colorIndex = 0;
+        gameActive = true;
+        updateUI("Game started! Cross a RED line next.");
+        return;
