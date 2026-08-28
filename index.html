@@ -19,6 +19,7 @@
       font-weight: bold;
       margin: 15px 0;
       min-height: 30px;
+      text-align: center;
     }
     /* 6x6 Grid Container */
     #maze-board {
@@ -71,12 +72,14 @@
 
   <div id="status">Click START to begin!</div>
 
+  <!-- Single Maze Grid Container -->
   <div id="maze-board"></div>
 
   <button id="reset-btn">New Maze</button>
 
   <script>
     const GRID_SIZE = 6;
+    const TIME_LIMIT_SECONDS = 120; // 2 minute time limit
     const colorMap = { 'r': '#e53935', 'w': '#cccccc', 'b': '#1e88e5' };
     const colorOrder = ['r', 'w', 'b'];
 
@@ -84,9 +87,12 @@
     let vWalls = [];
     let currentPos = null;
     let colorIndex = 0;
-    let startTime = null;
     let gameActive = false;
     let audioCtx = null;
+    
+    // Timer Variables
+    let timerId = null;
+    let secondsRemaining = TIME_LIMIT_SECONDS;
 
     function initArrays() {
       hWalls = Array.from({ length: 5 }, () => Array(6).fill(null));
@@ -180,6 +186,21 @@
       }
     }
 
+    function startTimer() {
+      clearInterval(timerId);
+      secondsRemaining = TIME_LIMIT_SECONDS;
+      
+      timerId = setInterval(() => {
+        secondsRemaining--;
+        if (secondsRemaining <= 0) {
+          clearInterval(timerId);
+          gameActive = false;
+          playSound('error');
+          updateUI("⏰ Time's up! Game Over. Click 'New Maze' to try again.");
+        }
+      }, 1000);
+    }
+
     function buildBoard() {
       generateSolvableMaze();
       const board = document.getElementById('maze-board');
@@ -215,13 +236,16 @@
     }
 
     function handleCellClick(r, c) {
+      // Start Game Condition
       if (r === 5 && c === 5) {
-        startTime = new Date();
-        currentPos = { r: 5, c: 5 };
-        colorIndex = 0;
-        gameActive = true;
-        updateUI("Started! Cross a RED line first.");
-        highlightCurrentCell();
+        if (!gameActive) {
+          startTimer();
+          currentPos = { r: 5, c: 5 };
+          colorIndex = 0;
+          gameActive = true;
+          updateUI("Started! Cross a RED line first.");
+          highlightCurrentCell();
+        }
         return;
       }
 
@@ -243,11 +267,17 @@
           colorIndex = (colorIndex + 1) % 3;
           const nextColor = colorIndex === 0 ? "RED" : colorIndex === 1 ? "WHITE" : "BLUE";
 
+          // Win Condition
           if (r === 0 && c === 0) {
-            const timeTaken = ((new Date() - startTime) / 1000).toFixed(1);
-            playSound('win');
-            updateUI(`🎉 Solved in ${timeTaken} seconds!`);
+            clearInterval(timerId); // Stop the timer
             gameActive = false;
+            
+            // Calculate final score (remaining seconds rounded to nearest whole number)
+            const score = Math.round(secondsRemaining);
+            const timeTaken = TIME_LIMIT_SECONDS - score;
+            
+            playSound('win');
+            updateUI(`🎉 Victory! Solved in ${timeTaken}s. Your Score: ${score} points!`);
           } else {
             updateUI(`Valid move! Next cross: ${nextColor} line.`);
           }
@@ -275,6 +305,7 @@
     }
 
     document.getElementById('reset-btn').addEventListener('click', () => {
+      clearInterval(timerId);
       currentPos = null;
       colorIndex = 0;
       gameActive = false;
